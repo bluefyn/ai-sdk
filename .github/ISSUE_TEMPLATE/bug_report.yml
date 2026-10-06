@@ -1,0 +1,84 @@
+name: Bug report
+description: The SDK does not do what its README or guide says.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Never paste an SDK key (`bfu_...`), a provider API key, or prompt or completion content into this issue. To report a vulnerability, follow [SECURITY.md](https://github.com/bluefyn/ai-sdk/blob/main/SECURITY.md) instead.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Code that shows the bug
+      description: The smallest code that reproduces it.
+      render: ts
+  - type: input
+    id: sdk-version
+    attributes:
+      label: SDK version
+      description: The version of @bluefyn/ai-spend-sdk, from `npm ls @bluefyn/ai-spend-sdk`.
+      placeholder: 0.2.0
+    validations:
+      required: true
+  - type: input
+    id: node-version
+    attributes:
+      label: Node.js version
+      description: The output of `node --version` where the SDK runs.
+      placeholder: v22.11.0
+    validations:
+      required: true
+  - type: dropdown
+    id: runtime
+    attributes:
+      label: Runtime
+      description: Where the SDK runs. If you pick Other, name the runtime under What happened.
+      options:
+        - A long-running Node.js server
+        - Vercel Functions
+        - AWS Lambda
+        - Cloudflare Workers
+        - A script or a cron job
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: adapter
+    attributes:
+      label: Adapter
+      description: How the call is recorded. Pick each one you use.
+      multiple: true
+      options:
+        - Vercel AI SDK (@bluefyn/ai-spend-sdk/vercel)
+        - Anthropic SDK (@bluefyn/ai-spend-sdk/anthropic)
+        - OpenAI SDK (@bluefyn/ai-spend-sdk/openai)
+        - Manual record()
+    validations:
+      required: true
+  - type: input
+    id: library-version
+    attributes:
+      label: Model library version
+      description: The version of the library the adapter wraps, if any.
+      placeholder: ai 7.0.111, @anthropic-ai/sdk 0.77.0, or openai 7.28.0
+  - type: textarea
+    id: stats
+    attributes:
+      label: Output of aiSpend.stats()
+      description: Run `console.log(aiSpend.enabled, aiSpend.stats())` after the call and after `await aiSpend.flush()`. It prints counts only.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: warnings
+    attributes:
+      label: Warnings the SDK logged
+      description: Every line that starts with `[ai-spend]` or `AI Spend:`. Remove any key before you paste.
+      render: text

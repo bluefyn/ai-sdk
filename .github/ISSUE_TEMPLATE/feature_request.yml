@@ -1,0 +1,24 @@
+name: Feature request
+description: Ask for an adapter, an option, or a change to the SDK.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The SDK sends metadata only. A request to capture prompts, completions, tool arguments, embeddings, or images is out of scope. For a question about your Bluefyn account, email [support@bluefyn.ai](mailto:support@bluefyn.ai).
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What you are trying to do, and what stops you today.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you propose
+      description: The API or behavior you would like. Code is welcome.
+  - type: textarea
+    id: workaround
+    attributes:
+      label: What you do today instead

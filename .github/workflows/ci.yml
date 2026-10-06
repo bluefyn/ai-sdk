@@ -1,0 +1,102 @@
+name: CI
+
+# The `Check` job is the required status check of main (RELEASING.md, one-time setup). Keep its
+# name stable: a renamed job leaves branch protection waiting for a check that never reports.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.19.0'
+
+      - name: Install (lockfile)
+        run: npm ci --no-audit --no-fund
+
+      - name: Version guard (package.json = AI_SPEND_SDK_VERSION)
+        run: node scripts/check-version.mjs
+
+      - name: Typecheck (sources + specs)
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+      # Before `Build + smoke`: check-docs builds dist/ itself, so pack and compat below must see
+      # the build that the smoke test loaded.
+      - name: README code samples compile
+        run: npm run check-docs
+
+      # scripts/build.mjs (CJS + ESM + per-format .d.ts) then scripts/smoke.mjs (every entry point
+      # loaded through the exports map with require AND import).
+      - name: Build + smoke
+        run: npm run build
+
+      - name: Pack (verify contents)
+        run: npm pack --dry-run
+
+      # Installs the packed tarball beside the minimum TESTED peer versions (pinned → deterministic).
+      - name: Compatibility check (min)
+        run: node scripts/compat-check.mjs --matrix min
+
+      # engines: ^20.16.0 || >=22.3.0. The floors are the first releases with
+      # process.getBuiltinModule, which the ambient context needs; the steps above ran on Node 24.
+      - name: Setup Node.js 20.16.0
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.16.0'
+
+      - name: Unit tests + build smoke (Node 20.16.0)
+        run: npm test && npm run build
+
+      - name: Setup Node.js 22.3.0
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.3.0'
+
+      - name: Unit tests + build smoke (Node 22.3.0)
+        run: npm test && npm run build
+
+  compat-moving:
+    # `latest` peers and older AI SDK majors resolve against the live registry, so an upstream
+    # release can turn this red with no change here — a signal, never a merge blocker.
+    name: Compat (latest + AI SDK v5/v6)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.19.0'
+
+      - name: Install (lockfile)
+        run: npm ci --no-audit --no-fund
+
+      - name: Build + smoke
+        run: npm run build
+
+      - name: Compatibility check (latest, ai-v5, ai-v6)
+        run: node scripts/compat-check.mjs --matrix latest,ai-v5,ai-v6

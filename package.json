@@ -1,0 +1,96 @@
+{
+  "name": "@bluefyn/ai-spend-sdk",
+  "version": "0.2.0",
+  "description": "Track the cost of your AI features per customer and feature. In-process, metadata-only usage telemetry for Bluefyn AI Spend — Vercel AI SDK, Anthropic and OpenAI adapters plus manual recording.",
+  "keywords": ["ai", "llm", "cost", "usage", "telemetry", "anthropic", "openai", "vercel-ai-sdk", "bluefyn"],
+  "license": "MIT",
+  "//private": "Publish through CI only. .npmrc sets ignore-scripts, so nothing builds on `npm publish` and a manual publish would ship no dist/: `private` makes npm refuse it (EPRIVATE). .github/workflows/publish.yml removes both keys right before `npm publish`.",
+  "private": true,
+  "homepage": "https://github.com/bluefyn/ai-sdk#readme",
+  "bugs": {
+    "url": "https://github.com/bluefyn/ai-sdk/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bluefyn/ai-sdk.git"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "sideEffects": false,
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/cjs/index.d.ts",
+  "exports": {
+    ".": {
+      "import": { "types": "./dist/esm/index.d.ts", "default": "./dist/esm/index.js" },
+      "require": { "types": "./dist/cjs/index.d.ts", "default": "./dist/cjs/index.js" },
+      "default": "./dist/cjs/index.js"
+    },
+    "./vercel": {
+      "import": { "types": "./dist/esm/vercel.d.ts", "default": "./dist/esm/vercel.js" },
+      "require": { "types": "./dist/cjs/vercel.d.ts", "default": "./dist/cjs/vercel.js" },
+      "default": "./dist/cjs/vercel.js"
+    },
+    "./anthropic": {
+      "import": { "types": "./dist/esm/anthropic.d.ts", "default": "./dist/esm/anthropic.js" },
+      "require": { "types": "./dist/cjs/anthropic.d.ts", "default": "./dist/cjs/anthropic.js" },
+      "default": "./dist/cjs/anthropic.js"
+    },
+    "./openai": {
+      "import": { "types": "./dist/esm/openai.d.ts", "default": "./dist/esm/openai.js" },
+      "require": { "types": "./dist/cjs/openai.d.ts", "default": "./dist/cjs/openai.js" },
+      "default": "./dist/cjs/openai.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "typesVersions": {
+    "*": {
+      "vercel": ["./dist/cjs/vercel.d.ts"],
+      "anthropic": ["./dist/cjs/anthropic.d.ts"],
+      "openai": ["./dist/cjs/openai.d.ts"]
+    }
+  },
+  "files": ["dist", "README.md", "CHANGELOG.md", "LICENSE"],
+  "engines": {
+    "node": "^20.16.0 || >=22.3.0"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs && node scripts/smoke.mjs",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "jest --config jest.config.cjs",
+    "compat-check": "node scripts/compat-check.mjs",
+    "check-docs": "node scripts/build.mjs && node scripts/check-docs.mjs"
+  },
+  "//peerDependencies": "Optional and unconstrained on purpose: the adapters are typed structurally and never import a peer, so a range could only veto installs (npm ERESOLVE) for paths that do not use that peer. Tested minimums: ai 7 for /vercel (registerTelemetry), @anthropic-ai/sdk 0.40, openai 4.80 — see scripts/compat-check.mjs.",
+  "peerDependencies": {
+    "@anthropic-ai/sdk": "*",
+    "ai": "*",
+    "openai": "*"
+  },
+  "peerDependenciesMeta": {
+    "@anthropic-ai/sdk": {
+      "optional": true
+    },
+    "ai": {
+      "optional": true
+    },
+    "openai": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@ai-sdk/anthropic": "4.0.60",
+    "@ai-sdk/openai": "4.0.72",
+    "@anthropic-ai/sdk": "^0.77.0",
+    "@swc/core": "~1.5.29",
+    "@swc/jest": "^0.2.39",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^20.19.9",
+    "ai": "7.0.111",
+    "jest": "^30.2.0",
+    "typescript": "~5.9.3",
+    "zod": "^4.3.6"
+  }
+}

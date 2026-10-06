@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "rootDir": "src",
+    "noEmit": false,
+    "sourceMap": false,
+    "removeComments": false
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.spec.ts", "src/**/*.test.ts", "src/**/*.live-spec.ts", "src/**/__fixtures__/**", "src/live/**"]
+}
