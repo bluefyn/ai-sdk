@@ -21,11 +21,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '24.19.0'
 
@@ -61,7 +61,7 @@ jobs:
       # engines: ^20.16.0 || >=22.3.0. The floors are the first releases with
       # process.getBuiltinModule, which the ambient context needs; the steps above ran on Node 24.
       - name: Setup Node.js 20.16.0
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '20.16.0'
 
@@ -69,7 +69,7 @@ jobs:
         run: npm test && npm run build
 
       - name: Setup Node.js 22.3.0
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '22.3.0'
 
@@ -84,11 +84,11 @@ jobs:
     timeout-minutes: 20
     continue-on-error: true
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '24.19.0'
 
