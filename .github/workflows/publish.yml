@@ -9,11 +9,8 @@ name: Publish to npm
 # Ref names reach the shell only through environment variables, never inline expressions.
 #
 # Auth: npm trusted publishing (OIDC). The trusted publisher of @bluefyn/ai-spend-sdk on npmjs.com
-# names this repository, this workflow file (publish.yml) and the `npm-publish` environment; no
-# secret is involved. npm can only add a trusted publisher to a package that already exists, so the
-# FIRST release is published with a short-lived granular token, the `NPM_TOKEN` secret of the
-# `npm-publish` environment, which is deleted once the trusted publisher is set. The Publish step
-# works in both states: npm tries OIDC first and falls back to the token when the secret is set.
+# names this repository, this workflow file (publish.yml) and the `npm-publish` environment. npm
+# exchanges the job's OIDC token for a short-lived publish token, so no secret is involved.
 
 on:
   push:
@@ -111,18 +108,11 @@ jobs:
       - name: Publish
         env:
           DIST_TAG: ${{ steps.version.outputs.dist_tag }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           set -euo pipefail
-          if [ -n "$NPM_TOKEN" ]; then
-            echo "::warning::publishing with the NPM_TOKEN bootstrap secret. Once this version is on npm, add the trusted publisher on npmjs.com and delete the secret (RELEASING.md)."
-            export NODE_AUTH_TOKEN="$NPM_TOKEN"
-          fi
           npm pkg delete private //private
           if ! npm publish --access public --provenance --tag "$DIST_TAG"; then
-            if [ -z "$NPM_TOKEN" ]; then
-              echo "::error::npm publish failed with no NPM_TOKEN secret, so it authenticated by trusted publishing: check the trusted publisher of @bluefyn/ai-spend-sdk on npmjs.com (repository bluefyn/ai-sdk, workflow publish.yml, environment npm-publish) and that npm $(npm --version) is >= 11.5.1"
-            fi
+            echo "::error::npm publish failed. It authenticates by trusted publishing, so check the trusted publisher of @bluefyn/ai-spend-sdk on npmjs.com (repository bluefyn/ai-sdk, workflow publish.yml, environment npm-publish) and that npm $(npm --version) is >= 11.5.1. RELEASING.md says how to retry."
             exit 1
           fi
 

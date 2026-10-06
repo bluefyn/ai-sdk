@@ -1,0 +1,105 @@
+name: Live contract
+
+# Runs src/live/adapters.live-spec.ts: small real calls to Anthropic and OpenAI through the
+# adapters, and one event sent to a Bluefyn ingest API. CONTRIBUTING.md lists the secrets of the
+# `live-contract` environment, who can run this workflow, and what a run costs.
+#
+# Only `schedule` and `workflow_dispatch` start it, never `pull_request` or `push`, so code from a
+# fork or an unmerged branch never runs with these secrets. The logs of this public repository are
+# public too. A jest failure message can hold token counts and provider error text, and OpenAI's
+# error text quotes part of a rejected key. So jest writes its results to a file, and the log shows
+# only each test's name and status.
+
+on:
+  schedule:
+    - cron: '17 6 * * 1' # Mondays, 06:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live:
+    name: Live contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 30 # 12 tests, each with the 120 s testTimeout of jest.live.config.cts
+    environment: live-contract
+    steps:
+      # Each expression turns a secret into true or false, so this step never holds a value.
+      - name: Secrets present
+        id: secrets
+        env:
+          EVENT: ${{ github.event_name }}
+          ANTHROPIC: ${{ secrets.AI_SPEND_SDK_LIVE_ANTHROPIC_KEY != '' }}
+          OPENAI: ${{ secrets.AI_SPEND_SDK_LIVE_OPENAI_KEY != '' }}
+          INGEST_KEY: ${{ secrets.AI_SPEND_SDK_LIVE_INGEST_KEY != '' }}
+          INGEST_URL: ${{ secrets.AI_SPEND_SDK_LIVE_INGEST_URL != '' }}
+        run: |
+          set -euo pipefail
+          if [[ "$INGEST_KEY" != "$INGEST_URL" ]]; then
+            echo "::warning::The ingest test needs both AI_SPEND_SDK_LIVE_INGEST_KEY and AI_SPEND_SDK_LIVE_INGEST_URL. Only one is set, so the ingest test is skipped."
+          fi
+          if [[ "$ANTHROPIC" == true || "$OPENAI" == true || ( "$INGEST_KEY" == true && "$INGEST_URL" == true ) ]]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          elif [[ "$EVENT" == schedule ]]; then
+            echo "::notice::No live contract test can run with the secrets of the live-contract environment, so this run tests nothing. CONTRIBUTING.md lists the secrets."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::No live contract test can run with the secrets of the live-contract environment. CONTRIBUTING.md lists the secrets each test needs."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.secrets.outputs.run == 'true'
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        if: steps.secrets.outputs.run == 'true'
+        with:
+          node-version: '24.19.0'
+
+      - name: Install (lockfile)
+        if: steps.secrets.outputs.run == 'true'
+        run: npm ci --no-audit --no-fund
+
+      # `openai` is not a dev dependency, so the spec loads it from AI_SPEND_SDK_LIVE_PEERS_DIR.
+      # The version is pinned because this job holds the secrets. CI's `Compat (latest + AI SDK
+      # v5/v6)` job tests openai@latest without them.
+      - name: Install openai for the live spec
+        if: steps.secrets.outputs.run == 'true'
+        run: npm install --prefix "$RUNNER_TEMP/peers" --ignore-scripts --no-audit --no-fund openai@7.28.0
+
+      - name: Live contract tests
+        if: steps.secrets.outputs.run == 'true'
+        env:
+          AI_SPEND_SDK_LIVE_ANTHROPIC_KEY: ${{ secrets.AI_SPEND_SDK_LIVE_ANTHROPIC_KEY }}
+          AI_SPEND_SDK_LIVE_OPENAI_KEY: ${{ secrets.AI_SPEND_SDK_LIVE_OPENAI_KEY }}
+          AI_SPEND_SDK_LIVE_INGEST_KEY: ${{ secrets.AI_SPEND_SDK_LIVE_INGEST_KEY }}
+          AI_SPEND_SDK_LIVE_INGEST_URL: ${{ secrets.AI_SPEND_SDK_LIVE_INGEST_URL }}
+          AI_SPEND_SDK_LIVE_PEERS_DIR: ${{ runner.temp }}/peers
+          RESULTS: ${{ runner.temp }}/live-contract.json
+        run: |
+          set +e
+          npx jest --config jest.live.config.cts --json --outputFile="$RESULTS" >/dev/null 2>&1
+          status=$?
+          set -e
+          node - <<'EOF'
+          const fs = require('node:fs');
+          if (!fs.existsSync(process.env.RESULTS)) {
+            console.log('::error::jest wrote no results. Run the live contract tests locally to see why (CONTRIBUTING.md).');
+            process.exit(0);
+          }
+          let failed = 0;
+          for (const suite of JSON.parse(fs.readFileSync(process.env.RESULTS, 'utf8')).testResults) {
+            if (suite.testExecError) console.log(`::error::The live spec did not run: ${suite.testExecError.message}`);
+            for (const test of suite.assertionResults) {
+              if (test.status === 'failed') failed++;
+              console.log(`${test.status === 'pending' ? 'skipped' : test.status}  ${test.fullName}`);
+            }
+          }
+          if (failed > 0) {
+            console.log(`::error::${failed} live contract tests failed. This log leaves out the failure messages. Run the tests locally to see them (CONTRIBUTING.md).`);
+          }
+          EOF
+          exit "$status"

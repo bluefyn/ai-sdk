@@ -9,11 +9,16 @@ The first public release. It records the token usage of your AI calls, attribute
 a customer, and sends it to Bluefyn AI Spend. It sends metadata only (token counts, model,
 attribution). Prompts and completions never leave your process.
 
+0.2.0 was published by hand, from a build of commit `3e456e7`. It has a registry signature but no
+provenance attestation, and the repository has no `v0.2.0` tag.
+[RELEASING.md](https://github.com/bluefyn/ai-sdk/blob/main/RELEASING.md#how-020-was-published)
+explains why. Later versions are published from a tag by CI, with provenance.
+
 ### Adapters
 
-- `@bluefyn/ai-spend-sdk/vercel`: a telemetry integration for the Vercel AI SDK v7
-  (`aiSpendTelemetry`, registered with `registerTelemetry()`; `withAiSpendIntegration` for calls
-  that pass their own integrations). It records one event per model call: every `generateText` /
+- `@bluefyn/ai-spend-sdk/vercel`: `aiSpendTelemetry`, a telemetry integration for the Vercel AI
+  SDK v7 that you register with `registerTelemetry()`. Calls that pass their own integrations add
+  it with `withAiSpendIntegration`. It records one event per model call: every `generateText` /
   `streamText` step, `generateObject` / `streamObject`, and `embed` / `embedMany`. Vercel AI
   Gateway calls are recorded under the `vercel_gateway` provider with the cost the gateway
   reported.
