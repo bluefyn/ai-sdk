@@ -16,9 +16,9 @@ explains why. Later versions are published from a tag by CI, with provenance.
 
 ### Adapters
 
-- `@bluefyn/ai-spend-sdk/vercel`: a telemetry integration for the Vercel AI SDK v7
-  (`aiSpendTelemetry`, registered with `registerTelemetry()`; `withAiSpendIntegration` for calls
-  that pass their own integrations). It records one event per model call: every `generateText` /
+- `@bluefyn/ai-spend-sdk/vercel`: `aiSpendTelemetry`, a telemetry integration for the Vercel AI
+  SDK v7 that you register with `registerTelemetry()`. Calls that pass their own integrations add
+  it with `withAiSpendIntegration`. It records one event per model call: every `generateText` /
   `streamText` step, `generateObject` / `streamObject`, and `embed` / `embedMany`. Vercel AI
   Gateway calls are recorded under the `vercel_gateway` provider with the cost the gateway
   reported.
