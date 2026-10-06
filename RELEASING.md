@@ -1,8 +1,8 @@
 # Releasing @bluefyn/ai-spend-sdk
 
-A release is a version bump merged to `main` and a `vX.Y.Z` tag on that commit. The tag starts [`.github/workflows/publish.yml`](.github/workflows/publish.yml), which runs the checks again and publishes the package to npm with provenance.
+A release is a version bump merged to `main` and a `vX.Y.Z` tag on that commit. The tag starts [`.github/workflows/publish.yml`](.github/workflows/publish.yml), which runs the checks again and publishes the package to npm with provenance. The workflow authenticates to npm by trusted publishing, so no npm token is involved.
 
-Publish through the workflow only. Never run `npm publish` by hand. `.npmrc` sets `ignore-scripts=true`, so nothing builds on `npm publish`, and `dist/` is never committed. A manual publish from a fresh checkout would ship a package with no code. To stop that, `package.json` sets `"private": true`, and npm refuses the publish with `EPRIVATE`. The workflow's `Publish` step removes `private` right before it runs `npm publish`, after every check has passed.
+Publish through the workflow only. Never run `npm publish` by hand. `.npmrc` sets `ignore-scripts=true`, so nothing builds on `npm publish`, and `dist/` is never committed. A manual publish from a fresh checkout would ship a package with no code. To stop that, `package.json` sets `"private": true`, and npm refuses the publish with `EPRIVATE`. The workflow's `Publish` step removes `private` right before it runs `npm publish`, after every check has passed. [0.2.0](#how-020-was-published) is the one version published by hand.
 
 ## Choose the version
 
@@ -59,34 +59,41 @@ The version guard is `scripts/check-version.mjs`. It fails unless the `version` 
 
 ## Fix a failed or bad release
 
-- If the publish fails after the tag exists, fix forward. Bump to the next patch version and release that.
+- If the run failed because of a setting outside the repository, such as the trusted publisher on npmjs.com or the `npm-publish` environment, fix the setting and re-run the failed job. The version is not on npm yet, so the run passes the `Not published yet` check again.
+- If the run failed because of the tagged commit, or the version is on npm already, fix forward. Bump to the next patch version and release that.
 - Never delete or move a tag. A published version's provenance names the commit it was built from, and a moved tag would point at different code.
 - To stop people from installing a bad release, run `npm deprecate @bluefyn/ai-spend-sdk@X.Y.Z "<reason>"` and release a fix. Do not unpublish.
 
 ## One-time setup
 
-Do these steps once, in this order, before the first release. Each step needs an owner of the account it names.
+0.2.0 is on npm, so npm can now add a trusted publisher to the package. Do these steps once, before the next release. Each step needs an owner of the account it names.
 
-1. **Confirm that Bluefyn owns the `@bluefyn` npm scope.** Sign in to npm with a Bluefyn account and run `npm org ls bluefyn`. It must list Bluefyn people as `owner` or `admin`. If the command fails or lists people you do not know, stop and find out who controls the org.
-2. **Protect `main`.** In the repository settings, add a branch ruleset for `main` that requires a pull request with one approving review, requires the `Check` status check, and blocks force pushes and deletion. GitHub does not count the author's own approval. A sole maintainer needs a second reviewer, or a bypass for repository admins in the ruleset.
-3. **Protect the release tags.** Add a tag ruleset for `v*` that restricts creation, update and deletion, with the release managers on its bypass list.
-4. **Turn on private vulnerability reporting**, which [`SECURITY.md`](SECURITY.md) tells reporters to use. It is under Settings → Advanced Security.
-5. **Create the `npm-publish` environment.** Settings → Environments → **New environment** `npm-publish`. Under **Deployment branches and tags**, choose **Selected branches and tags** and add only the tag rule `v*`. To have a person approve each publish, add required reviewers.
-6. **Add the bootstrap token.** npm adds a trusted publisher only to a package that already exists ([npm/cli#8544](https://github.com/npm/cli/issues/8544)), so the first publish uses a token.
-   1. On npmjs.com, create a granular access token with **Read and write** on the `@bluefyn` scope. Tick **Bypass two-factor authentication**, because the workflow cannot answer a 2FA prompt. Set the shortest expiry that covers the release, such as 7 days.
-   2. In the `npm-publish` environment, add the token as the environment secret `NPM_TOKEN`. Do not add it as a repository secret, because a repository secret is readable from every branch.
+1. **Protect `main`.** In the repository settings, add a branch ruleset for `main` that requires a pull request with one approving review, requires the `Check` status check, and blocks force pushes and deletion. GitHub does not count the author's own approval. A sole maintainer needs a second reviewer, or a bypass for repository admins in the ruleset.
+2. **Protect the release tags.** Add a tag ruleset for `v*` that restricts creation, update and deletion, with the release managers on its bypass list.
+3. **Turn on private vulnerability reporting**, which [`SECURITY.md`](SECURITY.md) and the issue chooser tell reporters to use. It is under Settings → Advanced Security.
+4. **Create the `npm-publish` environment.** Settings → Environments → **New environment** `npm-publish`. Under **Deployment branches and tags**, choose **Selected branches and tags** and add only the tag rule `v*`. To have a person approve each publish, add required reviewers. If the environment has an `NPM_TOKEN` secret, delete it. The workflow does not read it.
+5. **Add the trusted publisher.** On npmjs.com, open `@bluefyn/ai-spend-sdk` → **Settings** → **Trusted publishing** and add a **GitHub Actions** publisher with these values. Each value must match exactly.
 
-   npm has announced that tokens which bypass 2FA lose the right to publish in January 2027. If the first release has not happened by then, this step no longer works. Revisit it with npm's staged publishing first.
-7. **Check that the production ingest route is live.** The SDK sends to `https://gateway.bluefyn.ai/api` by default. The route must answer `401` (no key), not `404`:
+   | Field | Value |
+   | --- | --- |
+   | Organization or user | `bluefyn` |
+   | Repository | `ai-sdk` |
+   | Workflow filename | `publish.yml` |
+   | Environment name | `npm-publish` |
 
-   ```sh
-   curl -s -o /dev/null -w '%{http_code}\n' -X POST https://gateway.bluefyn.ai/api/v1/ai-usage/events
-   ```
+   The workflow filename is the file name only, without `.github/workflows/`. If the form asks for allowed actions, allow `npm publish`.
+6. **Disallow tokens.** In the same **Settings** page, under **Publishing access**, choose **Require two-factor authentication and disallow tokens**. Trusted publishing still works.
 
-8. **Release 0.2.0.** `package.json` already says 0.2.0, so start at step 5 of [Release a version](#release-a-version) and tag the `main` commit whose `Check` job passed. The `Publish` step warns "publishing with the NPM_TOKEN bootstrap secret". That warning is expected for this release only.
-9. **Switch to trusted publishing and delete the token.**
-   1. On npmjs.com, open `@bluefyn/ai-spend-sdk` → **Settings** → **Trusted publishing** and add a **GitHub Actions** publisher: organization `bluefyn`, repository `ai-sdk`, workflow filename `publish.yml`, environment `npm-publish`. If the form asks for allowed actions, allow `npm publish`.
-   2. Under **Publishing access**, choose **Require two-factor authentication and disallow tokens**. Trusted publishing still works.
-   3. Delete the `NPM_TOKEN` secret from the `npm-publish` environment, and delete the token on npmjs.com.
+The next release is the first run that uses the trusted publisher. If its `Publish` step fails, the error names the values to compare, and [Fix a failed or bad release](#fix-a-failed-or-bad-release) says how to retry.
 
-   The next release authenticates with OIDC, and the workflow needs no edit. Without the secret, `npm publish` runs with no token, and npm exchanges the job's OIDC token for a publish token. If that publish fails, the step's error names what to check.
+## How 0.2.0 was published
+
+npm adds a trusted publisher only to a package that already exists ([npm/cli#8544](https://github.com/npm/cli/issues/8544)). So the first version could not come from the workflow without an npm token, and 0.2.0 was published by hand, once:
+
+- On 2026-10-06, a maintainer published a clean build of commit `3e456e7`, the first commit on `main`, from a laptop. npm recorded that commit as the version's `gitHead`, and `npm view @bluefyn/ai-spend-sdk@0.2.0 _npmUser` shows the account.
+- The maintainer signed in to npm on the website, with two-factor authentication in the browser.
+- The publish used `--provenance=false`, because npm generates provenance only in a supported CI system. So 0.2.0 has a registry signature and no provenance attestation, and `npm audit signatures` verifies only its signature.
+
+The repository has no `v0.2.0` tag. A tag push runs `publish.yml` as it is in the tagged commit, and that workflow's `Not published yet` step fails, because 0.2.0 is on npm already. A `v0.2.0` tag would only start a failed run.
+
+Every later version is published from its tag by the workflow, with provenance.

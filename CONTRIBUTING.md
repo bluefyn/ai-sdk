@@ -32,7 +32,39 @@ node scripts/compat-check.mjs --matrix min   # the packed tarball beside the low
 
 `compat-check.mjs` needs `dist/`, so run `npm run build` first. `check-docs` and `compat-check.mjs` install packages from the npm registry and need network access.
 
-The live contract tests make small, real calls to Anthropic and OpenAI, and `npm test` never runs them. The variables they need are listed at the top of `src/live/adapters.live-spec.ts`. To run them, set those variables and run `npx jest --config jest.live.config.cts`.
+## Run the live contract tests
+
+The live contract tests check that each adapter records exactly the usage that the provider reported for the same call. They make small, real calls to Anthropic and OpenAI, and send one event to a Bluefyn ingest API. `npm test` never runs them.
+
+The variables they need are listed at the top of `src/live/adapters.live-spec.ts`. To run them on your machine, set those variables and run `npx jest --config jest.live.config.cts`. `openai` is not a dev dependency, so the OpenAI tests load it from the directory that `AI_SPEND_SDK_LIVE_PEERS_DIR` names.
+
+### Run them in CI
+
+[`.github/workflows/live-contract.yml`](.github/workflows/live-contract.yml) runs the same tests every Monday at 06:17 UTC, and whenever a maintainer starts it. Pull requests and pushes never start it, so code from a fork or an unmerged branch never runs with its secrets.
+
+The workflow reads these secrets of the `live-contract` environment. A group of tests runs only when its secrets are set.
+
+| Secret | Value | Tests it runs |
+| --- | --- | --- |
+| `AI_SPEND_SDK_LIVE_ANTHROPIC_KEY` | An Anthropic API key | `wrapAnthropic`, and the Vercel adapter with `@ai-sdk/anthropic` |
+| `AI_SPEND_SDK_LIVE_OPENAI_KEY` | An OpenAI API key | `wrapOpenAI`, and the Vercel adapter with `@ai-sdk/openai` |
+| `AI_SPEND_SDK_LIVE_INGEST_KEY` | A Bluefyn SDK key (`bfu_...`) | The ingest test, together with the URL |
+| `AI_SPEND_SDK_LIVE_INGEST_URL` | The API base of the Bluefyn environment that issued the key, such as `https://gateway.bluefyn.ai/api` | The ingest test, together with the key |
+
+To set up the environment, a repository admin does this once:
+
+1. In Settings → Environments, create the environment `live-contract`. If a run of the workflow created it first, open it instead. Under **Deployment branches and tags**, choose **Selected branches and tags** and add only `main`. A run started on another branch then cannot read the secrets. Do not add required reviewers, because a scheduled run would wait for an approval.
+2. Add the secrets as environment secrets of `live-contract`, not as repository secrets.
+
+Anyone with write access to the repository can start a run. Open **Actions** → **Live contract** → **Run workflow**, and run it on `main`.
+
+If no group of tests has its secrets, a scheduled run ends with a notice and tests nothing. A run started by hand fails instead.
+
+The log of a run shows only the name and status of each test. A failure message can hold token counts and provider error text, and the logs of this repository are public. To see why a test failed, run the tests on your machine.
+
+A run makes four Anthropic calls and seven OpenAI calls, and every call sends the same one-sentence prompt. Each Anthropic call allows at most 16 output tokens. Six of the OpenAI calls allow at most 256 output tokens each, and the seventh is an embedding, which has no output tokens. The ingest test adds one usage event, for the customer `live-contract` and the feature `sdk.live_contract`, to the tenant that owns the ingest key.
+
+The workflow installs `openai` at the exact version it names. Dependabot does not update that version, so raise it by hand. GitHub turns off a scheduled workflow in a public repository after 60 days without activity in the repository. To turn it back on, open the workflow in the **Actions** tab.
 
 ## Open a pull request
 
