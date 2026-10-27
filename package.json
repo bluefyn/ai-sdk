@@ -81,16 +81,16 @@
     }
   },
   "devDependencies": {
-    "@ai-sdk/anthropic": "4.0.60",
-    "@ai-sdk/openai": "4.0.72",
+    "@ai-sdk/anthropic": "4.0.87",
+    "@ai-sdk/openai": "4.0.101",
     "@anthropic-ai/sdk": "^0.77.0",
-    "@swc/core": "~1.5.29",
+    "@swc/core": "~1.16.20",
     "@swc/jest": "^0.2.39",
     "@types/jest": "^30.0.0",
     "@types/node": "^20.19.9",
-    "ai": "7.0.111",
+    "ai": "7.0.152",
     "jest": "^30.2.0",
     "typescript": "~5.9.3",
-    "zod": "^4.3.6"
+    "zod": "^4.6.7"
   }
 }
